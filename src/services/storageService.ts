@@ -19,6 +19,11 @@ export const storageService = {
   },
 
   clear: async () => {
-    await AsyncStorage.multiRemove(['user', 'token']);
-  },
+    try {
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('token');
+    } catch (error) {
+      console.log('Failed to clear storage:', error);
+    }
+  }
 };
