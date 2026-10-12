@@ -1,260 +1,287 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  Switch,
-} from 'react-native';
-import { ArrowLeft, ChevronRight, Shield, Bell, Lock, User, Globe } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+  ArrowLeft,
+  ChevronRight,
+  Shield,
+  Bell,
+  Lock,
+  User,
+  Globe,
+  Palette,
+  LogOut,
+  Check,
+} from 'lucide-react';
 import { ROUTES } from '../../../lib/constants';
 import { useAuth } from '../../../context/useAuth';
 import { authService } from '../../../services/authService';
 import { storageService } from '../../../services/storageService';
+import { getInitials } from '../../../lib/helpers';
+import { useNavigation } from '../../../navigation/NavigationContext';
 
-function AccountSettingsPage() {
-  const navigation = useNavigation();
-  const { user, logout } = useAuth();
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [privateAccount, setPrivateAccount] = React.useState(false);
+export default function AccountSettingsPage() {
+  const { navigate } = useNavigation();
+  const { user, logout, login } = useAuth();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [privateAccount, setPrivateAccount] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [nameInput, setNameInput] = useState(user?.name || 'Shahrukh Ahmed');
+  const [bioInput, setBioInput] = useState(user?.bio || 'Building a calmer public square for Pakistan.');
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleLogout = async () => {
     try {
       await authService.logout();
-      storageService.clear();
+      await storageService.clear();
       logout();
-      (navigation as any).navigate(ROUTES.SIGN_IN);
+      navigate(ROUTES.SIGN_IN);
     } catch (error) {
       console.error('Logout error:', error);
-      storageService.clear();
+      await storageService.clear();
       logout();
-      (navigation as any).navigate(ROUTES.SIGN_IN);
+      navigate(ROUTES.SIGN_IN);
     }
   };
 
-  const settingsSections = [
-    {
-      title: 'Account',
-      items: [
-        { icon: User, label: 'Edit profile', onPress: () => {} },
-        { icon: Globe, label: 'Language', onPress: () => {} },
-      ],
-    },
-    {
-      title: 'Security',
-      items: [
-        { icon: Lock, label: 'Change password', onPress: () => {} },
-        { icon: Shield, label: 'Two-factor authentication', onPress: () => {} },
-      ],
-    },
-    {
-      title: 'Preferences',
-      items: [
-        { 
-          icon: Bell, 
-          label: 'Push notifications', 
-          type: 'switch',
-          value: notificationsEnabled,
-          onValueChange: setNotificationsEnabled,
-        },
-        { 
-          icon: Shield, 
-          label: 'Private account', 
-          type: 'switch',
-          value: privateAccount,
-          onValueChange: setPrivateAccount,
-        },
-      ],
-    },
-  ];
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = {
+      ...user,
+      name: nameInput.trim() || user?.name,
+      bio: bioInput.trim() || user?.bio,
+    };
+    login(updated, 'active-token');
+    setSavedSuccess(true);
+    setTimeout(() => {
+      setSavedSuccess(false);
+      setEditingProfile(false);
+    }, 1000);
+  };
 
   return (
-    <View style={styles.container}>
+    <div className="min-h-screen bg-white pb-20">
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (navigation as any).navigate(ROUTES.HOME)}
+      <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-white/95 backdrop-blur-xs border-b border-gray-100">
+        <button
+          type="button"
+          onClick={() => navigate(ROUTES.HOME)}
+          className="p-2 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+          title="Back to home"
         >
-          <ArrowLeft size={20} color="#111" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account Settings</Text>
-      </View>
+          <ArrowLeft size={18} />
+        </button>
+        <h1 className="text-lg font-bold text-gray-900">Account Settings</h1>
+      </div>
 
-      <ScrollView style={styles.content}>
-        {/* User Info */}
-        <View style={styles.userInfo}>
-          <View style={styles.userAvatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.slice(0, 1) || 'U'}
-            </Text>
-          </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{user?.name || 'Unknown User'}</Text>
-            <Text style={styles.userHandle}>{user?.username || '@user'}</Text>
-          </View>
-        </View>
+      <div className="max-w-2xl mx-auto p-4 space-y-6">
+        {/* User Info Card */}
+        <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+          <div className="w-14 h-14 rounded-full bg-emerald-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-xs">
+            {user?.profile_photo ? (
+              <img
+                src={user.profile_photo}
+                alt={user?.name}
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <span>{getInitials(user?.name || 'Fliq Studio')}</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-bold text-gray-900 truncate">
+              {user?.name || 'Shahrukh Ahmed'}
+            </h2>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.username || '@shahrukh'} · {user?.email || 'shahrukh@fliq.pk'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditingProfile(!editingProfile)}
+            className="text-xs px-3 py-1.5 rounded-full font-semibold border border-gray-200 hover:bg-white bg-transparent text-gray-800 transition-colors"
+          >
+            {editingProfile ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
 
-        {/* Settings Sections */}
-        {settingsSections.map((section) => (
-          <View key={section.title} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionItems}>
-              {section.items.map((item, index) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[styles.settingItem, index === section.items.length - 1 && styles.settingItemLast]}
-                  onPress={item.type !== 'switch' ? item.onPress : undefined}
-                  disabled={item.type === 'switch'}
-                >
-                  <View style={styles.settingLeft}>
-                    <item.icon size={20} color="#666" />
-                    <Text style={styles.settingLabel}>{item.label}</Text>
-                  </View>
-                  {item.type === 'switch' ? (
-                    <Switch
-                      value={item.value}
-                      onValueChange={item.onValueChange}
-                      trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-                      thumbColor="#fff"
-                    />
-                  ) : (
-                    <ChevronRight size={20} color="#999" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
+        {/* Profile Edit Form */}
+        {editingProfile && (
+          <form
+            onSubmit={handleSaveProfile}
+            className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-3"
+          >
+            <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+              Edit Public Profile
+            </h3>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Bio
+              </label>
+              <textarea
+                value={bioInput}
+                onChange={(e) => setBioInput(e.target.value)}
+                rows={2}
+                className="w-full text-xs px-3 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs"
+              >
+                {savedSuccess ? (
+                  <>
+                    <Check size={14} /> Saved!
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Section: Account */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
+            Account & Identity
+          </span>
+          <div className="bg-gray-50/80 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setEditingProfile(true)}
+              className="w-full flex items-center justify-between p-3.5 hover:bg-gray-100/70 text-left transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <User size={18} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-800">Edit Profile</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-400" />
+            </button>
+            <button
+              type="button"
+              className="w-full flex items-center justify-between p-3.5 hover:bg-gray-100/70 text-left transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Globe size={18} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-800">Language</span>
+              </div>
+              <span className="text-xs text-gray-500 font-medium">English (PK)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section: Appearance */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
+            Appearance & Experience
+          </span>
+          <div className="bg-gray-50/80 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.SETTINGS_DISPLAY)}
+              className="w-full flex items-center justify-between p-3.5 hover:bg-gray-100/70 text-left transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Palette size={18} className="text-emerald-600" />
+                <div>
+                  <div className="text-sm font-medium text-gray-800">Display Theme</div>
+                  <div className="text-xs text-gray-400">Light, Dark, and System appearance</div>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Section: Security */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
+            Security
+          </span>
+          <div className="bg-gray-50/80 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3">
+                <Lock size={18} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-800">Password</span>
+              </div>
+              <span className="text-xs text-gray-400">Updated 1 month ago</span>
+            </div>
+            <div className="flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3">
+                <Shield size={18} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-800">Two-Factor Authentication</span>
+              </div>
+              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                Active
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Preferences */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">
+            Preferences
+          </span>
+          <div className="bg-gray-50/80 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3">
+                <Bell size={18} className="text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium text-gray-800">Push Notifications</div>
+                  <div className="text-xs text-gray-400">Receive alerts for mentions & replies</div>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={notificationsEnabled}
+                onChange={(e) => setNotificationsEnabled(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex items-center justify-between p-3.5">
+              <div className="flex items-center gap-3">
+                <Shield size={18} className="text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium text-gray-800">Private Account</div>
+                  <div className="text-xs text-gray-400">Only approved followers can view posts</div>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={privateAccount}
+                onChange={(e) => setPrivateAccount(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Log out</Text>
-        </TouchableOpacity>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-red-50 hover:bg-red-100/80 text-red-600 font-semibold text-sm transition-colors border border-red-100"
+        >
+          <LogOut size={16} />
+          <span>Log out</span>
+        </button>
 
-        <Text style={styles.versionText}>Fliq App v1.0.0</Text>
-      </ScrollView>
-    </View>
+        <p className="text-center text-xs text-gray-400">
+          Fliq Pakistan Web v1.0.0 · A calmer public square
+        </p>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  content: {
-    flex: 1,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  userAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  userHandle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-  },
-  sectionItems: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  settingItemLast: {
-    borderBottomWidth: 0,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#111',
-  },
-  logoutButton: {
-    backgroundColor: '#FEF2F2',
-    marginHorizontal: 16,
-    marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 24,
-    marginBottom: 24,
-  },
-});
-
-export default AccountSettingsPage;

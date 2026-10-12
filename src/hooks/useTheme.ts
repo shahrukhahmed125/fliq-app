@@ -1,31 +1,40 @@
 import { useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from 'react-native';
 
 export function useTheme() {
-  const colorScheme = useColorScheme();
-  const [theme, setTheme] = useState<string>('light');
+  const [theme, setTheme] = useState<string>(() => {
+    try {
+      return localStorage.getItem('theme') || 'light';
+    } catch {
+      return 'light';
+    }
+  });
 
   useEffect(() => {
-    const loadTheme = async () => {
-      const saved = await AsyncStorage.getItem('theme');
-      setTheme(saved || 'light');
-    };
-    loadTheme();
-  }, []);
-
-  useEffect(() => {
-    const saveTheme = async () => {
+    try {
       if (theme === 'system') {
-        await AsyncStorage.removeItem('theme');
+        localStorage.removeItem('theme');
       } else {
-        await AsyncStorage.setItem('theme', theme);
+        localStorage.setItem('theme', theme);
       }
-    };
-    saveTheme();
+    } catch {}
+
+    const isDark =
+      theme === 'dark' ||
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [theme]);
 
-  const effectiveTheme = theme === 'system' ? (colorScheme || 'light') : theme;
+  const effectiveTheme =
+    theme === 'system'
+      ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme;
 
-  return { theme: effectiveTheme, setTheme };
+  return { theme: effectiveTheme, setTheme, rawTheme: theme };
 }

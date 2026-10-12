@@ -1,35 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-  FlatList,
-} from 'react-native';
-import { ArrowLeft, CalendarDays, Link as LinkIcon, MapPin, MoreHorizontal, ShieldCheck, Loader2 } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+  ArrowLeft,
+  CalendarDays,
+  Link as LinkIcon,
+  MapPin,
+  MoreHorizontal,
+  ShieldCheck,
+  Loader2,
+} from 'lucide-react';
 import { profileHighlights } from '../../../data/fliqData';
 import PostCard from '../../feed/components/PostCard';
 import { ROUTES } from '../../../lib/constants';
 import { useAuth } from '../../../context/useAuth';
-import { getInitials, getRandomCover } from '../../../lib/helpers';
+import { getInitials } from '../../../lib/helpers';
 import { postService } from '../../../services/postService';
+import { useNavigation } from '../../../navigation/NavigationContext';
 
-function ProfilePage() {
-  const navigation = useNavigation();
+export default function ProfilePage() {
+  const { navigate } = useNavigation();
   const { user } = useAuth();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [activeTab, setActiveTab] = useState(0);
+
   const fetchPosts = async () => {
     try {
       setLoading(true);
       const fetchedPosts = await postService.getPosts({
-        user_id: user?.id
+        user_id: user?.id,
       });
-      console.log('PROFILE POSTS FETCHED:', fetchedPosts);
       setPosts(fetchedPosts);
     } catch (error) {
       console.error('PROFILE POSTS ERROR:', error);
@@ -39,358 +38,176 @@ function ProfilePage() {
   };
 
   useEffect(() => {
-    if (user?.id) {
-      fetchPosts();
-    }
+    fetchPosts();
   }, [user]);
 
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      if (user?.id) {
-        fetchPosts();
-      }
-    }, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [user]);
-
-  const renderPost = ({ item }: { item: any }) => (
-    <PostCard post={item} />
-  );
+  const tabs = ['Posts', 'Replies', 'Media', 'Likes'];
 
   return (
-    <ScrollView style={styles.container}>
+    <div className="min-h-screen bg-white pb-20">
       {/* Topbar */}
-      <View style={styles.topbar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (navigation as any).navigate(ROUTES.HOME)}
+      <div className="sticky top-0 z-20 flex items-center gap-4 px-4 py-2.5 bg-white/95 backdrop-blur-xs border-b border-gray-100">
+        <button
+          type="button"
+          onClick={() => navigate(ROUTES.HOME)}
+          className="p-2 rounded-full hover:bg-gray-100 text-gray-700 transition-colors"
+          title="Back to home"
         >
-          <ArrowLeft size={20} color="#111" />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.topbarTitle}>{user?.name || 'Fliq Studio'}</Text>
-          <Text style={styles.topbarSubtitle}>42 posts</Text>
-        </View>
-      </View>
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 leading-tight">
+            {user?.name || 'Fliq Studio'}
+          </h1>
+          <span className="text-xs text-gray-500 font-normal">
+            {posts.length || 42} posts
+          </span>
+        </div>
+      </div>
 
-      {/* Hero Section */}
-      <View style={styles.hero}>
-        <Image
-          source={{ uri: user?.profile_cover ? user.profile_cover : getRandomCover() }}
-          style={styles.coverImage}
-        />
-        <View style={styles.profileMain}>
-          <View style={styles.avatarContainer}>
+      {/* Cover Banner */}
+      <div className="relative h-44 bg-linear-to-r from-emerald-800 via-teal-700 to-emerald-900 overflow-hidden">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+        <div className="absolute bottom-3 right-4 bg-black/40 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-md font-medium">
+          🇵🇰 Pakistan
+        </div>
+      </div>
+
+      {/* Profile Details */}
+      <div className="px-5 pb-4">
+        {/* Avatar and Action Buttons Row */}
+        <div className="flex items-end justify-between -mt-14 mb-4">
+          <div className="w-24 h-24 rounded-full border-4 border-white bg-emerald-600 text-white font-bold text-2xl flex items-center justify-center shadow-md overflow-hidden">
             {user?.profile_photo ? (
-              <Image
-                source={{ uri: user.profile_photo }}
-                style={styles.avatarImage}
+              <img
+                src={user.profile_photo}
+                alt={user?.name}
+                className="w-full h-full object-cover"
               />
             ) : (
-              <View style={[styles.avatarImage, styles.avatarFallback]}>
-                <Text style={styles.avatarText}>{getInitials(user?.name || 'Fliq Studio')}</Text>
-              </View>
+              <span>{getInitials(user?.name || 'Fliq Studio')}</span>
             )}
-          </View>
-          <View style={styles.profileActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <MoreHorizontal size={19} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit profile</Text>
-            </TouchableOpacity>
-          </View>
+          </div>
 
-          <View style={styles.profileIdentity}>
-            <View style={styles.nameRow}>
-              <Text style={styles.userName}>{user?.name || 'Fliq Studio'}</Text>
-              <View style={styles.verifiedBadge}>
-                <ShieldCheck size={14} color="#10B981" />
-              </View>
-            </View>
-            <Text style={styles.userHandle}>{user?.username || '@fliq'}</Text>
-            <Text style={styles.userBio}>
-              {user?.bio || 'Building a calmer public square for Pakistan. Product notes, community updates, creator tools, and design thinking for the next generation of social media.'}
-            </Text>
-            <View style={styles.userMeta}>
-              <View style={styles.metaItem}>
-                <MapPin size={15} color="#666" />
-                <Text style={styles.metaText}>Pakistan</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <LinkIcon size={15} color="#666" />
-                <Text style={styles.metaText}>fliq.pk</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <CalendarDays size={15} color="#666" />
-                <Text style={styles.metaText}>
-                  Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'May 2026'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statsRow}>
-              {profileHighlights.map(([value, label]) => (
-                <View key={label} style={styles.stat}>
-                  <Text style={styles.statValue}>{value}</Text>
-                  <Text style={styles.statLabel}>{label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      </View>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 text-gray-700 transition-colors"
+              title="More options"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.SETTINGS_ACCOUNT)}
+              className="px-4 py-1.5 rounded-full bg-gray-900 hover:bg-black text-white text-xs font-semibold shadow-xs transition-colors"
+            >
+              Edit profile
+            </button>
+          </div>
+        </div>
+
+        {/* Identity */}
+        <div className="mb-4">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <h2 className="text-xl font-bold text-gray-900">
+              {user?.name || 'Fliq Studio'}
+            </h2>
+            <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+          </div>
+          <p className="text-sm text-gray-500 mb-3">{user?.username || '@fliq'}</p>
+
+          <p className="text-sm text-gray-800 leading-relaxed mb-3 max-w-xl">
+            {user?.bio ||
+              'Building a calmer public square for Pakistan. Product notes, community updates, creator tools, and design thinking for the next generation of social media.'}
+          </p>
+
+          {/* Metadata chips */}
+          <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-gray-500 mb-4">
+            <div className="flex items-center gap-1">
+              <MapPin size={14} className="text-gray-400" />
+              <span>Pakistan</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <LinkIcon size={14} className="text-gray-400" />
+              <a href="https://fliq.pk" target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline">
+                fliq.pk
+              </a>
+            </div>
+            <div className="flex items-center gap-1">
+              <CalendarDays size={14} className="text-gray-400" />
+              <span>
+                Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'May 2024'}
+              </span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-5 text-sm">
+            {profileHighlights.map(([value, label]) => (
+              <div key={label} className="flex items-baseline gap-1">
+                <span className="font-bold text-gray-950">{value}</span>
+                <span className="text-gray-500 text-xs">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Tabs */}
-      <View style={styles.tabsBar}>
-        {['Posts', 'Replies', 'Media', 'Likes'].map((tab, index) => (
-          <TouchableOpacity
+      <div className="flex border-b border-gray-100">
+        {tabs.map((tab, idx) => (
+          <button
             key={tab}
-            style={[styles.tab, index === 0 && styles.tabActive]}
+            type="button"
+            onClick={() => setActiveTab(idx)}
+            className={`flex-1 py-3 text-sm font-semibold text-center transition-all relative ${
+              activeTab === idx
+                ? 'text-gray-950 font-bold'
+                : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50/50'
+            }`}
           >
-            <Text style={[styles.tabText, index === 0 && styles.tabTextActive]}>{tab}</Text>
-          </TouchableOpacity>
+            {tab}
+            {activeTab === idx && (
+              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-emerald-600 rounded-full" />
+            )}
+          </button>
         ))}
-      </View>
+      </div>
 
       {/* Insights */}
-      <View style={styles.insightGrid}>
-        <View style={styles.insight}>
-          <Text style={styles.insightTitle}>Creator-first updates</Text>
-          <Text style={styles.insightDescription}>Early notes on product direction, moderation, and community spaces.</Text>
-        </View>
-        <View style={styles.insight}>
-          <Text style={styles.insightTitle}>Pakistan live trends</Text>
-          <Text style={styles.insightDescription}>Tracking conversations around cricket, cities, creators, and tech.</Text>
-        </View>
-      </View>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-gray-50/70 border-b border-gray-100">
+        <div className="p-3.5 bg-white rounded-xl border border-gray-100 shadow-2xs">
+          <h3 className="text-xs font-bold text-gray-900 mb-1">Creator-first updates</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Early notes on product direction, moderation, and community spaces for creators across Lahore, Karachi, and Islamabad.
+          </p>
+        </div>
+        <div className="p-3.5 bg-white rounded-xl border border-gray-100 shadow-2xs">
+          <h3 className="text-xs font-bold text-gray-900 mb-1">Pakistan live trends</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Real-time conversations tracking cricket developments, tech startups, civic voices, and cultural moments.
+          </p>
+        </div>
+      </div>
 
-      {/* Posts */}
-      <View style={styles.postsSection}>
+      {/* Posts Section */}
+      <div>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <Loader2 size={32} color="#10B981" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-2">
+            <Loader2 size={24} className="animate-spin text-emerald-600" />
+            <span className="text-xs">Loading posts...</span>
+          </div>
         ) : posts.length > 0 ? (
           posts.map((post) => (
-            <PostCard post={post} key={post.id} />
+            <PostCard key={post.id || post.uuid} post={post} />
           ))
         ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No posts yet</Text>
-          </View>
+          <div className="py-16 text-center text-gray-400 text-sm">
+            No posts found under this tab
+          </div>
         )}
-      </View>
-    </ScrollView>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  topbarTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  topbarSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  hero: {
-    marginBottom: 12,
-  },
-  coverImage: {
-    width: '100%',
-    height: 150,
-  },
-  profileMain: {
-    paddingHorizontal: 16,
-    marginTop: -40,
-  },
-  avatarContainer: {
-    marginBottom: 12,
-  },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    borderColor: '#fff',
-  },
-  avatarFallback: {
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  profileActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
-  },
-  actionButton: {
-    padding: 8,
-  },
-  editButton: {
-    backgroundColor: '#111',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  profileIdentity: {
-    marginBottom: 16,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
-    marginRight: 8,
-  },
-  verifiedBadge: {
-    padding: 4,
-  },
-  userHandle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  userBio: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  userMeta: {
-    marginBottom: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  metaText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 6,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111',
-    marginRight: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  tabsBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#10B981',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#111',
-  },
-  insightGrid: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  insight: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 12,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111',
-    marginBottom: 4,
-  },
-  insightDescription: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 16,
-  },
-  postsSection: {
-    paddingBottom: 24,
-  },
-  loadingContainer: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    paddingVertical: 48,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-  },
-});
-
-export default ProfilePage;

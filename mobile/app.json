@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Fliq",
+    "slug": "fliq-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "fliq",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#10B981"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fliq.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fliq needs camera access to let you capture and share photos and videos.",
+        "NSPhotoLibraryUsageDescription": "Fliq needs library access to let you upload media to your posts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#10B981"
+      },
+      "package": "com.fliq.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your followers on Fliq."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

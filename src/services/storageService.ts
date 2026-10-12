@@ -1,29 +1,43 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 export const storageService = {
   setUser: async (user: any) => {
-    await AsyncStorage.setItem('user', JSON.stringify(user));
+    try {
+      localStorage.setItem('user', JSON.stringify(user));
+    } catch (e) {
+      console.warn('Storage error:', e);
+    }
   },
 
   getUser: async () => {
-    const user = await AsyncStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    try {
+      const user = localStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    } catch {
+      return null;
+    }
   },
 
   setToken: async (token: string) => {
-    await AsyncStorage.setItem('token', token);
+    try {
+      localStorage.setItem('token', token);
+    } catch (e) {
+      console.warn('Storage error:', e);
+    }
   },
 
   getToken: async () => {
-    return await AsyncStorage.getItem('token');
+    try {
+      return localStorage.getItem('token');
+    } catch {
+      return null;
+    }
   },
 
   clear: async () => {
     try {
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
     } catch (error) {
       console.log('Failed to clear storage:', error);
     }
-  }
+  },
 };

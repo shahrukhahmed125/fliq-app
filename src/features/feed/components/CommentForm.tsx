@@ -1,34 +1,31 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { Loader2, Send, X } from 'lucide-react';
 import { postService } from '../../../services/postService';
 
-function CommentForm({
+interface CommentFormProps {
+  postUuid: string;
+  replyTo?: any;
+  onCancelReply: () => void;
+  onCommentAdded: (comment: any) => void;
+}
+
+export default function CommentForm({
   postUuid,
   replyTo,
   onCancelReply,
   onCommentAdded,
-}: {
-  postUuid: string;
-  replyTo: any;
-  onCancelReply: () => void;
-  onCommentAdded: (comment: any) => void;
-}) {
+}: CommentFormProps) {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!text.trim()) return;
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!text.trim() || isLoading) return;
 
     try {
       setIsLoading(true);
       const commentData: any = {
-        content: text,
+        content: text.trim(),
       };
 
       if (replyTo) {
@@ -47,100 +44,45 @@ function CommentForm({
   };
 
   return (
-    <View style={styles.container}>
+    <div className="mt-3 pt-3 border-t border-gray-100">
       {replyTo && (
-        <View style={styles.replyToContainer}>
-          <Text style={styles.replyToText}>
-            Replying to <Text style={styles.replyToName}>{replyTo?.user?.name}</Text>
-          </Text>
-          <TouchableOpacity onPress={onCancelReply}>
-            <Text style={styles.cancelReply}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-2 bg-emerald-50/60 px-3 py-1.5 rounded-lg border border-emerald-100">
+          <span>
+            Replying to <strong className="text-emerald-700 font-medium">{replyTo?.user?.name || replyTo?.user?.username}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="text-gray-400 hover:text-gray-600 p-0.5"
+            title="Cancel reply"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
-      <View style={styles.formContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Write a comment..."
-          placeholderTextColor="#999"
+
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <input
+          type="text"
+          className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+          placeholder={replyTo ? "Write a reply..." : "Write a comment..."}
           value={text}
-          onChangeText={setText}
-          multiline
-          editable={!isLoading}
+          onChange={(e) => setText(e.target.value)}
+          disabled={isLoading}
         />
-        <TouchableOpacity
-          style={[styles.submitButton, (!text.trim() || isLoading) && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
+        <button
+          type="submit"
           disabled={!text.trim() || isLoading}
+          className="inline-flex items-center justify-center p-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+          title="Send comment"
         >
-          <Text style={styles.submitButtonText}>
-            {isLoading ? 'Sending...' : 'Send'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          {isLoading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Send size={16} />
+          )}
+        </button>
+      </form>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  replyToContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  replyToText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  replyToName: {
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  cancelReply: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  formContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    backgroundColor: '#F9FAFB',
-    color: '#111',
-    maxHeight: 80,
-    textAlignVertical: 'top',
-  },
-  submitButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-});
-
-export default CommentForm;

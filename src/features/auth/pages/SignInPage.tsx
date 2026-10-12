@@ -1,32 +1,22 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../context/useAuth';
 import { authService } from '../../../services/authService';
 import { ROUTES } from '../../../lib/constants';
+import { useNavigation } from '../../../navigation/NavigationContext';
 
-function SignInPage() {
-  const navigation = useNavigation();
+export default function SignInPage() {
+  const { navigate } = useNavigation();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'shahrukh@fliq.pk',
+    password: 'password123',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<any>({});
   const [generalError, setGeneralError] = useState('');
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!formData.email || !formData.password) {
       setGeneralError('Please fill in all fields');
       return;
@@ -37,249 +27,114 @@ function SignInPage() {
     setGeneralError('');
 
     try {
-      const response = await authService.login(formData);
-      
-      // Store token and user data
-      const user = response.data?.user || response.data;
-      const token = response.token;
-      
+      const response: any = await authService.login(formData);
+      const user = response?.data?.user || response?.data;
+      const token = response?.token;
       login(user, token);
-      
-      // Reset form
-      setFormData({
-        email: '',
-        password: '',
-      });
-      
-      (navigation as any).navigate(ROUTES.HOME);
-      
+      navigate(ROUTES.HOME);
     } catch (error: any) {
-      console.log('LOGIN ERROR:', error.response?.data || error);
-      // Handle Laravel validation errors
-      if (error.response?.status === 422) {
-        const validationErrors = error.response.data.errors;
-        let formattedErrors: any = {};
-        
-        Object.keys(validationErrors).forEach((key) => {
-          formattedErrors[key] = validationErrors[key][0];
-        });
-        
-        setErrors(formattedErrors);
-      } else {
-        // Handle other errors (invalid credentials, server errors, etc.)
-        setGeneralError(
-          error.response?.data?.message || 'Unable to sign in. Please check your credentials and try again.'
-        );
-      }
+      console.error('LOGIN ERROR:', error);
+      setGeneralError('Unable to sign in. Please check credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-    
-    // Clear error for this field when user starts typing
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: '',
-      });
+      setErrors((prev: any) => ({ ...prev, [name]: '' }));
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <View style={styles.branding}>
-            <Text style={styles.brandName}>Fliq</Text>
-            <Text style={styles.tagline}>See what's happening</Text>
-            <Text style={styles.description}>
-              Join Fliq today to share your thoughts and connect with others.
-            </Text>
-          </View>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-2xl shadow-md mb-3">
+          F
+        </div>
+        <h1 className="text-3xl font-extrabold text-gray-950 tracking-tight">Fliq</h1>
+        <h2 className="mt-1 text-lg font-bold text-gray-800">See what's happening</h2>
+        <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
+          Join the calmer public square for Pakistan to share thoughts and connect with creators.
+        </p>
+      </div>
 
-          <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="Email"
-                placeholderTextColor="#999"
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
+        <div className="bg-white py-8 px-6 shadow-sm border border-gray-100 rounded-3xl sm:px-10">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Email address
+              </label>
+              <input
+                type="email"
+                required
+                className="w-full text-sm px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+                placeholder="name@fliq.pk"
                 value={formData.email}
-                onChangeText={(text) => handleChange('email', text)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
+                onChange={(e) => handleChange('email', e.target.value)}
               />
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </View>
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+              )}
+            </div>
 
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
-                placeholder="Password"
-                placeholderTextColor="#999"
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => navigate(ROUTES.FORGOT_PASSWORD)}
+                  className="text-xs font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <input
+                type="password"
+                required
+                className="w-full text-sm px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+                placeholder="••••••••"
                 value={formData.password}
-                onChangeText={(text) => handleChange('password', text)}
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="password"
+                onChange={(e) => handleChange('password', e.target.value)}
               />
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            </View>
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+              )}
+            </div>
 
-            {generalError ? (
-              <Text style={styles.generalError}>{generalError}</Text>
-            ) : null}
+            {generalError && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs text-center border border-red-100">
+                {generalError}
+              </div>
+            )}
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit}
+            <button
+              type="submit"
               disabled={isLoading}
+              className="w-full py-3 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all cursor-pointer"
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </Text>
-            </TouchableOpacity>
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
 
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => (navigation as any).navigate(ROUTES.FORGOT_PASSWORD)}
-            >
-              <Text style={styles.linkText}>Forgot password?</Text>
-            </TouchableOpacity>
-
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>Don't have an account? </Text>
-              <TouchableOpacity
-                onPress={() => (navigation as any).navigate(ROUTES.SIGN_UP)}
+          <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+            <p className="text-xs text-gray-500">
+              Don't have an account?{' '}
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.SIGN_UP)}
+                className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
               >
-                <Text style={styles.linkText}>Sign up</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                Sign up
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  branding: {
-    marginBottom: 48,
-    alignItems: 'center',
-  },
-  brandName: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#10B981',
-    marginBottom: 16,
-  },
-  tagline: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 28,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: 16,
-    backgroundColor: '#F9FAFB',
-    color: '#111',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 8,
-    marginLeft: 12,
-  },
-  generalError: {
-    color: '#EF4444',
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: 'center',
-    backgroundColor: '#FEF2F2',
-    padding: 12,
-    borderRadius: 8,
-  },
-  button: {
-    backgroundColor: '#10B981',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 5,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  linkText: {
-    color: '#10B981',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  switchText: {
-    color: '#666',
-    fontSize: 14,
-  },
-});
-
-export default SignInPage;

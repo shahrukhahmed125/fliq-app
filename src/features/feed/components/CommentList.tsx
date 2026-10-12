@@ -1,47 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native';
-import { formatDate } from '../../../lib/helpers';
+import { Loader2, MessageSquare } from 'lucide-react';
+import { formatDate, getInitials } from '../../../lib/helpers';
 import { postService } from '../../../services/postService';
 
-function CommentItem({ comment, onReply }: { comment: any; onReply: (comment: any) => void }) {
-  return (
-    <View style={styles.commentItem}>
-      <View style={styles.commentAvatar}>
-        <Text style={styles.commentAvatarText}>
-          {comment?.user?.name?.slice(0, 1) || 'U'}
-        </Text>
-      </View>
-      <View style={styles.commentContent}>
-        <View style={styles.commentHeader}>
-          <Text style={styles.commentUserName}>{comment?.user?.name || 'Unknown'}</Text>
-          <Text style={styles.commentDate}>{formatDate(comment?.created_at)}</Text>
-        </View>
-        <Text style={styles.commentText}>{comment?.content}</Text>
-        <TouchableOpacity onPress={() => onReply(comment)}>
-          <Text style={styles.replyButton}>Reply</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+interface CommentListProps {
+  postUuid: string;
+  isOpen: boolean;
+  onCommentCountChange?: (count: number) => void;
+  onReply: (comment: any) => void;
 }
 
-function CommentList({
+export default function CommentList({
   postUuid,
   isOpen,
   onCommentCountChange,
   onReply,
-}: {
-  postUuid: string;
-  isOpen: boolean;
-  onCommentCountChange: (count: number) => void;
-  onReply: (comment: any) => void;
-}) {
+}: CommentListProps) {
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -49,8 +23,11 @@ function CommentList({
     try {
       setLoading(true);
       const data = await postService.getComments(postUuid);
-      setComments(Array.isArray(data) ? data : []);
-      onCommentCountChange(Array.isArray(data) ? data.length : 0);
+      const list = Array.isArray(data) ? data : [];
+      setComments(list);
+      if (onCommentCountChange) {
+        onCommentCountChange(list.length);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
@@ -67,94 +44,48 @@ function CommentList({
   if (!isOpen) return null;
 
   return (
-    <View style={styles.container}>
+    <div className="mt-3 pt-3 border-t border-gray-100">
       {loading ? (
-        <Text style={styles.loadingText}>Loading comments...</Text>
+        <div className="flex items-center justify-center py-4 text-xs text-gray-500 gap-2">
+          <Loader2 size={16} className="animate-spin text-emerald-600" />
+          <span>Loading discussions...</span>
+        </div>
       ) : comments.length === 0 ? (
-        <Text style={styles.emptyText}>No comments yet</Text>
+        <div className="text-center py-4 text-xs text-gray-400 flex flex-col items-center gap-1">
+          <MessageSquare size={16} className="opacity-40" />
+          <span>No comments yet. Start the conversation!</span>
+        </div>
       ) : (
-        <FlatList
-          data={comments}
-          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-          renderItem={({ item }) => (
-            <CommentItem comment={item} onReply={onReply} />
-          )}
-          style={styles.list}
-        />
+        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+          {comments.map((comment, index) => (
+            <div key={comment.id || index} className="flex gap-2.5 text-xs text-gray-700">
+              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-semibold flex items-center justify-center text-[11px] shrink-0">
+                {getInitials(comment?.user?.name || comment?.user?.username || 'User')}
+              </div>
+              <div className="flex-1 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-gray-900">
+                    {comment?.user?.name || 'Community Member'}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {formatDate(comment?.created_at || new Date())}
+                  </span>
+                </div>
+                <p className="text-gray-800 leading-relaxed text-xs">{comment?.content}</p>
+                <div className="mt-1.5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onReply(comment)}
+                    className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                  >
+                    Reply
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
-    </View>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  list: {
-    maxHeight: 300,
-  },
-  commentItem: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  commentAvatarText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  commentUserName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111',
-    marginRight: 8,
-  },
-  commentDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  commentText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  replyButton: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-});
-
-export default CommentList;

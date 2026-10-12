@@ -6,7 +6,7 @@ import {
   MessageSquare,
   Settings,
   Users,
-} from 'lucide-react-native';
+} from 'lucide-react';
 
 export const posts = [
   {

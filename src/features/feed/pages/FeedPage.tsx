@@ -1,52 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
-import { Sparkles, Loader2, ArrowUp } from 'lucide-react-native';
+import { Sparkles, Loader2, ArrowUp, RefreshCw } from 'lucide-react';
 import Composer from '../components/Composer';
 import PostCard from '../components/PostCard';
 import { postService } from '../../../services/postService';
 
-function FeedPage() {
+export default function FeedPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPostsCount, setNewPostsCount] = useState(0);
   const [showNewPostsPill, setShowNewPostsPill] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const lastPostIds = useRef(new Set<string>());
+  const lastPostIds = useRef<Set<string>>(new Set());
   const tabs = ['For You', 'Trending'];
-
-  const handlePostSuccess = (newPost: any) => {
-    if (newPost) {
-      setPosts((prev) => [newPost, ...prev]);
-      lastPostIds.current.add(newPost.id);
-    }
-  };
+  const feedTopRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = async (isPolling = false) => {
     try {
       if (!isPolling) setLoading(true);
       const newPosts = await postService.getPosts();
-      console.log('FEED POSTS FETCHED:', newPosts);
-      
+
       if (isPolling && newPosts.length > 0) {
-        const currentPostIds = new Set(newPosts.map((p: any) => p.id));
-        const newPostIds = [...currentPostIds].filter(id => !lastPostIds.current.has(id));
-        
+        const currentPostIds = new Set<string>(newPosts.map((p: any) => String(p.id || p.uuid)));
+        const newPostIds = [...currentPostIds].filter((id) => !lastPostIds.current.has(id));
+
         if (newPostIds.length > 0) {
           setNewPostsCount(newPostIds.length);
           setShowNewPostsPill(true);
         }
       } else {
         setPosts(newPosts);
-        lastPostIds.current = new Set(newPosts.map((p: any) => p.id));
+        lastPostIds.current = new Set(newPosts.map((p: any) => String(p.id || p.uuid)));
         setNewPostsCount(0);
         setShowNewPostsPill(false);
       }
@@ -57,210 +41,127 @@ function FeedPage() {
     }
   };
 
-  const handleNewPostsClick = () => {
-    setIsRefreshing(true);
-    setShowNewPostsPill(false);
-    fetchPosts()
-      .then(() => {
-        // Scroll to top
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      })
-      .finally(() => {
-        setIsRefreshing(false);
-      });
+  const handlePostSuccess = (newPost: any) => {
+    if (newPost) {
+      setPosts((prev) => [newPost, ...prev]);
+      lastPostIds.current.add(newPost.id || newPost.uuid);
+    }
   };
 
-  const flatListRef = useRef<FlatList>(null);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setShowNewPostsPill(false);
+    await fetchPosts(false);
+    setIsRefreshing(false);
+    feedTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
+  // Polling simulation every 30 seconds
   useEffect(() => {
     const pollInterval = setInterval(() => {
       fetchPosts(true);
-    }, 30000); // Poll every 30 seconds
+    }, 30000);
 
     return () => clearInterval(pollInterval);
   }, []);
 
-  const renderPost = ({ item }: { item: any }) => (
-    <PostCard post={item} />
-  );
+  // Filter posts based on active tab
+  const displayedPosts = activeTab === 1
+    ? [...posts].sort((a, b) => (b.likes_count || b.likes || 0) - (a.likes_count || a.likes || 0))
+    : posts;
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Home</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <Sparkles size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
+    <div className="min-h-screen bg-white pb-16 relative">
+      <div ref={feedTopRef} />
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {tabs.map((tab, index) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === index && styles.tabActive]}
-            onPress={() => setActiveTab(index)}
-          >
-            <Text style={[styles.tabText, activeTab === index && styles.tabTextActive]}>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-xs border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3">
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Home</h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className={`p-2 rounded-full text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all ${
+                isRefreshing ? 'animate-spin text-emerald-600' : ''
+              }`}
+              title="Refresh feed"
+            >
+              <RefreshCw size={17} />
+            </button>
+            <button
+              type="button"
+              className="p-2 rounded-full text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+              title="Highlights"
+            >
+              <Sparkles size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-t border-gray-100">
+          {tabs.map((tab, index) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(index)}
+              className={`flex-1 py-3 text-sm font-semibold text-center transition-all relative ${
+                activeTab === index
+                  ? 'text-gray-950 font-bold'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50/50'
+              }`}
+            >
               {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              {activeTab === index && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-emerald-600 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <FlatList
-        ref={flatListRef}
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-        ListHeaderComponent={<Composer onPostSuccess={handlePostSuccess} />}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleNewPostsClick}
-            colors={['#10B981']}
-          />
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.loadingContainer}>
-              <Loader2 size={32} color="#10B981" />
-              <Text style={styles.loadingText}>Loading...</Text>
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No posts yet</Text>
-            </View>
-          )
-        }
-        contentContainerStyle={styles.listContent}
-      />
+      {/* Composer */}
+      <Composer onPostSuccess={handlePostSuccess} />
 
-      {/* New Posts Pill */}
+      {/* New Posts Floating Pill */}
       {showNewPostsPill && (
-        <TouchableOpacity
-          style={styles.newPostsPill}
-          onPress={handleNewPostsClick}
-          disabled={isRefreshing}
-        >
-          {isRefreshing ? (
-            <View style={styles.pillContent}>
-              <Loader2 size={16} color="#fff" />
-              <Text style={styles.pillText}>Loading...</Text>
-            </View>
-          ) : (
-            <View style={styles.pillContent}>
-              <ArrowUp size={16} color="#fff" />
-              <Text style={styles.pillText}>
-                {newPostsCount} new post{newPostsCount !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <div className="sticky top-28 z-30 flex justify-center py-2 pointer-events-none">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow-lg hover:bg-emerald-700 hover:scale-105 transition-all animate-bounce"
+          >
+            <ArrowUp size={14} />
+            <span>
+              {newPostsCount} new {newPostsCount === 1 ? 'post' : 'posts'}
+            </span>
+          </button>
+        </div>
       )}
-    </View>
+
+      {/* Posts List */}
+      <div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
+            <Loader2 size={28} className="animate-spin text-emerald-600" />
+            <span className="text-sm">Loading posts...</span>
+          </div>
+        ) : displayedPosts.length === 0 ? (
+          <div className="py-20 text-center text-gray-400">
+            <p className="text-base font-medium text-gray-600">No posts in feed yet</p>
+            <p className="text-xs text-gray-400 mt-1">Be the first to share your thoughts!</p>
+          </div>
+        ) : (
+          displayedPosts.map((post) => (
+            <PostCard key={post.id || post.uuid} post={post} />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  iconButton: {
-    padding: 8,
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#10B981',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#111',
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-  },
-  newPostsPill: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
-    backgroundColor: '#10B981',
-    borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  pillContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  pillText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
-
-export default FeedPage;
