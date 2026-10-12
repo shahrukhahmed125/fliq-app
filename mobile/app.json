@@ -41,7 +41,8 @@
           "photosPermission": "The app accesses your photos to let you share them with your followers on Fliq."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-asset"
     ]
   }
 }
