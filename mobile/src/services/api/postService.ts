@@ -1,9 +1,9 @@
 import { apiClient } from './client';
 import { Post, Comment } from '../../types';
-import { SEED_POSTS } from '../../data/fliqData';
+import { INITIAL_POSTS } from '../../data/fliqData';
 
 // Local working copy of posts for state mutations
-let activePosts: Post[] = [...SEED_POSTS];
+let activePosts: Post[] = [...INITIAL_POSTS];
 const localComments: Record<string, Comment[]> = {
   'post-1': [
     {
