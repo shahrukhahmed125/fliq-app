@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
+  Image,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,61 +15,74 @@ import {
   MapPin,
   Link as LinkIcon,
   Calendar,
+  Bookmark,
 } from 'lucide-react-native';
-import { useAuth } from '../../src/context/AuthContext';
-import { Post } from '../../src/types';
-import { postService } from '../../src/services/api/postService';
+import { useApp } from '../../src/context/AppContext';
 import { PostCard } from '../../src/components/posts/PostCard';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../src/constants/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'media' | 'likes'>('posts');
-  const [userPosts, setUserPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { currentUser, posts, savedPosts } = useApp();
+  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'saved' | 'media'>('posts');
 
-  useEffect(() => {
-    const fetchUserPosts = async () => {
-      try {
-        setLoading(true);
-        const posts = await postService.getPosts({ user_id: user?.id || '1' });
-        setUserPosts(posts);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserPosts();
-  }, [user]);
+  // Filter posts authored by current user
+  const userPosts = posts.filter(
+    (p) => p.user.id === currentUser.id || p.user.username === currentUser.username
+  );
 
   const tabs: Array<{ key: typeof activeTab; label: string }> = [
     { key: 'posts', label: 'Posts' },
     { key: 'replies', label: 'Replies' },
+    { key: 'saved', label: 'Saved' },
     { key: 'media', label: 'Media' },
-    { key: 'likes', label: 'Likes' },
   ];
+
+  const getDisplayedFeed = () => {
+    switch (activeTab) {
+      case 'saved':
+        return savedPosts;
+      case 'media':
+        return userPosts.filter((p) => p.media && p.media.length > 0);
+      case 'replies':
+      case 'posts':
+      default:
+        return userPosts;
+    }
+  };
+
+  const displayedList = getDisplayedFeed();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top action header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>{user?.name || 'Shahrukh Ahmed'}</Text>
+          <Text style={styles.headerTitle}>{currentUser.name}</Text>
           <Text style={styles.headerSubtitle}>{userPosts.length} thoughts</Text>
         </View>
 
         <Pressable
           style={styles.settingsIconBtn}
           onPress={() => router.push('/settings/account')}
+          hitSlop={8}
         >
-          <Settings size={20} color={COLORS.textPrimary} />
+          <Settings size={22} color={COLORS.textPrimary} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Cover Banner */}
         <View style={styles.coverBanner}>
+          {currentUser.profile_cover ? (
+            <Image
+              source={{ uri: currentUser.profile_cover }}
+              style={styles.coverImage}
+            />
+          ) : (
+            <View style={styles.coverFallback} />
+          )}
           <View style={styles.bannerBadge}>
             <Text style={styles.bannerBadgeText}>🇵🇰 Pakistan</Text>
           </View>
@@ -81,62 +94,86 @@ export default function ProfileScreen() {
           <View style={styles.avatarRow}>
             <View style={styles.avatarWrap}>
               <Avatar
-                uri={user?.profile_photo}
-                name={user?.name || 'Shahrukh Ahmed'}
+                uri={currentUser.profile_photo}
+                name={currentUser.name}
                 size={76}
-                isVerified
+                isVerified={currentUser.is_verified}
               />
             </View>
 
-            <Pressable
-              style={styles.editProfileBtn}
-              onPress={() => router.push('/settings/account')}
-            >
-              <Text style={styles.editProfileText}>Edit profile</Text>
-            </Pressable>
+            <View style={styles.actionRow}>
+              <Pressable
+                style={styles.editProfileBtn}
+                onPress={() => router.push('/edit-profile')}
+              >
+                <Text style={styles.editProfileText}>Edit profile</Text>
+              </Pressable>
+              <Pressable
+                style={styles.savedIconBtn}
+                onPress={() => router.push('/saved')}
+                hitSlop={4}
+              >
+                <Bookmark size={16} color={COLORS.textPrimary} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Name & verification */}
           <View style={styles.nameRow}>
-            <Text style={styles.userName}>{user?.name || 'Shahrukh Ahmed'}</Text>
-            <ShieldCheck size={18} color={COLORS.primary} />
+            <Text style={styles.userName}>{currentUser.name}</Text>
+            {currentUser.is_verified && <ShieldCheck size={18} color={COLORS.primary} />}
           </View>
-          <Text style={styles.userHandle}>{user?.username || '@shahrukh'}</Text>
+          <Text style={styles.userHandle}>{currentUser.username}</Text>
 
           {/* Bio */}
-          <Text style={styles.userBio}>
-            {user?.bio ||
-              'Building a calmer public square for Pakistan. Product notes, community updates, creator tools, and design thinking.'}
-          </Text>
+          {currentUser.bio ? <Text style={styles.userBio}>{currentUser.bio}</Text> : null}
 
           {/* Meta Details */}
           <View style={styles.detailsRow}>
-            <View style={styles.detailItem}>
-              <MapPin size={13} color={COLORS.textMuted} />
-              <Text style={styles.detailText}>{user?.city || 'Pakistan'}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <LinkIcon size={13} color={COLORS.primary} />
-              <Text style={[styles.detailText, styles.detailLink]}>fliq.pk</Text>
-            </View>
+            {currentUser.city ? (
+              <View style={styles.detailItem}>
+                <MapPin size={13} color={COLORS.textMuted} />
+                <Text style={styles.detailText}>{currentUser.city}</Text>
+              </View>
+            ) : null}
+            {currentUser.website ? (
+              <View style={styles.detailItem}>
+                <LinkIcon size={13} color={COLORS.primary} />
+                <Text style={[styles.detailText, styles.detailLink]}>
+                  {currentUser.website.replace('https://', '')}
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.detailItem}>
               <Calendar size={13} color={COLORS.textMuted} />
               <Text style={styles.detailText}>Joined May 2024</Text>
             </View>
           </View>
 
-          {/* Statistics Bar */}
+          {/* Statistics Bar (tappable to view lists) */}
           <View style={styles.statsBar}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>12.8K</Text>
+            <Pressable
+              style={styles.statItem}
+              onPress={() => router.push(`/followers/${currentUser.username.replace('@', '')}`)}
+            >
+              <Text style={styles.statValue}>
+                {currentUser.followers_count >= 1000
+                  ? `${(currentUser.followers_count / 1000).toFixed(1)}K`
+                  : currentUser.followers_count}
+              </Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>186</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.statItem}
+              onPress={() => router.push(`/following/${currentUser.username.replace('@', '')}`)}
+            >
+              <Text style={styles.statValue}>{currentUser.following_count}</Text>
               <Text style={styles.statLabel}>Following</Text>
-            </View>
+            </Pressable>
+
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{userPosts.length || 42}</Text>
+              <Text style={styles.statValue}>{userPosts.length || currentUser.posts_count}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
           </View>
@@ -157,13 +194,28 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Feed of user posts */}
-        {loading ? (
-          <View style={styles.loadingArea}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
+        {/* Feed of posts */}
+        {displayedList.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>
+              {activeTab === 'saved' ? 'No saved posts' : 'No posts under this tab'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {activeTab === 'saved'
+                ? 'Bookmarks you save from the feed will appear here.'
+                : 'Share your first thought with the Pakistani community.'}
+            </Text>
+            {activeTab === 'posts' && (
+              <Pressable
+                style={styles.createBtn}
+                onPress={() => router.push('/(tabs)/create')}
+              >
+                <Text style={styles.createBtnText}>Post a Thought</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
-          userPosts.map((post) => (
+          displayedList.map((post) => (
             <PostCard
               key={post.id}
               post={post}
@@ -186,7 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 4,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
     backgroundColor: '#FFFFFF',
@@ -207,15 +259,24 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxxl,
   },
   coverBanner: {
-    height: 120,
+    height: 124,
     backgroundColor: COLORS.primaryDark,
     position: 'relative',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
     padding: SPACING.sm,
   },
+  coverImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  coverFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.primaryDark,
+  },
   bannerBadge: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
     borderRadius: RADIUS.sm,
@@ -241,11 +302,12 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFFFFF',
     borderRadius: RADIUS.full,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
     elevation: 3,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   editProfileBtn: {
     borderWidth: 1.5,
@@ -259,6 +321,16 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     color: COLORS.textPrimary,
+  },
+  savedIconBtn: {
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
   nameRow: {
     flexDirection: 'row',
@@ -349,8 +421,34 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontWeight: '800',
   },
-  loadingArea: {
-    paddingVertical: SPACING.xxxl,
+  emptyContainer: {
     alignItems: 'center',
+    padding: SPACING.xxxl,
+    marginTop: SPACING.lg,
+  },
+  emptyTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  emptySubtitle: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 240,
+    lineHeight: 18,
+  },
+  createBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADIUS.full,
+    marginTop: SPACING.lg,
+  },
+  createBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FONT_SIZE.sm,
   },
 });

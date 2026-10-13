@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,77 +6,84 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles, SlidersHorizontal } from 'lucide-react-native';
-import { Post } from '../../src/types';
-import { postService } from '../../src/services/api/postService';
+import { Bookmark, MessageSquare, Plus } from 'lucide-react-native';
+import { Post, User } from '../../src/types';
+import { useApp } from '../../src/context/AppContext';
 import { PostCard } from '../../src/components/posts/PostCard';
+import { FliqLogo } from '../../src/components/ui/FliqLogo';
+import { Avatar } from '../../src/components/ui/Avatar';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../src/constants/theme';
 
 export default function FeedScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'forYou' | 'trending'>('forYou');
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { posts, users, currentUser } = useApp();
+  const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
   const [refreshing, setRefreshing] = useState(false);
-
-  const fetchPosts = useCallback(async () => {
-    try {
-      const fetched = await postService.getPosts();
-      if (activeTab === 'trending') {
-        const sorted = [...fetched].sort((a, b) => b.likes_count - a.likes_count);
-        setPosts(sorted);
-      } else {
-        setPosts(fetched);
-      }
-    } catch {
-      //
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchPosts();
-  }, [fetchPosts]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchPosts();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 800);
   };
+
+  // Filter posts based on active tab
+  const displayedPosts =
+    activeTab === 'following'
+      ? posts.filter((p) => {
+          const author = users[p.user.username];
+          return author?.is_following || p.user.id === currentUser.id;
+        })
+      : posts;
+
+  const creatorsList = Object.values(users);
 
   const handlePressPost = (post: Post) => {
     router.push(`/post/${post.id}`);
   };
 
+  const handlePressUser = (user: User) => {
+    if (user.id === currentUser.id || user.username === currentUser.username) {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push(`/users/${user.username.replace('@', '')}`);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Top Header */}
+      {/* Top Header with Fliq Logo */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoBadgeText}>F</Text>
-          </View>
-          <Text style={styles.headerTitle}>Fliq</Text>
+          <FliqLogo size={26} />
           <View style={styles.pkBadge}>
             <Text style={styles.pkBadgeText}>PK</Text>
           </View>
         </View>
 
-        <Pressable
-          style={styles.iconButton}
-          onPress={() => router.push('/(tabs)/create')}
-        >
-          <Sparkles size={20} color={COLORS.primary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => router.push('/saved')}
+            hitSlop={8}
+          >
+            <Bookmark size={20} color={COLORS.textPrimary} />
+          </Pressable>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => router.push('/(tabs)/create')}
+            hitSlop={8}
+          >
+            <Plus size={22} color={COLORS.primary} />
+          </Pressable>
+        </View>
       </View>
 
-      {/* Tabs Row */}
+      {/* Tabs Row: For You & Following */}
       <View style={styles.tabsRow}>
         <Pressable
           style={[styles.tabItem, activeTab === 'forYou' && styles.tabItemActive]}
@@ -87,51 +94,114 @@ export default function FeedScreen() {
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.tabItem, activeTab === 'trending' && styles.tabItemActive]}
-          onPress={() => setActiveTab('trending')}
+          style={[styles.tabItem, activeTab === 'following' && styles.tabItemActive]}
+          onPress={() => setActiveTab('following')}
         >
-          <Text style={[styles.tabText, activeTab === 'trending' && styles.tabTextActive]}>
-            Trending
+          <Text style={[styles.tabText, activeTab === 'following' && styles.tabTextActive]}>
+            Following
           </Text>
         </Pressable>
       </View>
 
-      {/* Main Feed List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Curating your calmer feed...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              onPressPost={handlePressPost}
-              onPressComment={handlePressPost}
-            />
-          )}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>No posts yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Be the first to share an insight with the Pakistani community.
-              </Text>
+      {/* Main Feed List with Featured Creators Header */}
+      <FlatList
+        data={displayedPosts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onPressPost={handlePressPost}
+            onPressComment={handlePressPost}
+          />
+        )}
+        ListHeaderComponent={
+          activeTab === 'forYou' ? (
+            <View style={styles.creatorsSection}>
+              <View style={styles.creatorsHeader}>
+                <Text style={styles.creatorsTitle}>Featured Creators</Text>
+                <Pressable onPress={() => router.push('/(tabs)/explore')}>
+                  <Text style={styles.seeAllText}>Explore →</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.creatorsScroll}
+              >
+                {/* Current User add story / post circle */}
+                <Pressable
+                  style={styles.creatorStoryItem}
+                  onPress={() => router.push('/(tabs)/create')}
+                >
+                  <View style={styles.myAvatarWrap}>
+                    <Avatar
+                      uri={currentUser.profile_photo}
+                      name={currentUser.name}
+                      size={54}
+                    />
+                    <View style={styles.addBadge}>
+                      <Plus size={12} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  </View>
+                  <Text style={styles.creatorStoryName} numberOfLines={1}>
+                    Your Post
+                  </Text>
+                </Pressable>
+
+                {creatorsList.map((creator) => (
+                  <Pressable
+                    key={creator.id}
+                    style={styles.creatorStoryItem}
+                    onPress={() => handlePressUser(creator)}
+                  >
+                    <View style={styles.creatorAvatarRing}>
+                      <Avatar
+                        uri={creator.profile_photo}
+                        name={creator.name}
+                        size={52}
+                        isVerified={creator.is_verified}
+                      />
+                    </View>
+                    <Text style={styles.creatorStoryName} numberOfLines={1}>
+                      {creator.name.split(' ')[0]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
-          }
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>
+              {activeTab === 'following' ? 'No posts from followed creators' : 'No posts yet'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {activeTab === 'following'
+                ? 'Follow Pakistani creators and journalists in Explore to populate your feed.'
+                : 'Be the first to share an insight with the community.'}
+            </Text>
+            <Pressable
+              style={styles.exploreEmptyBtn}
+              onPress={() => router.push(activeTab === 'following' ? '/(tabs)/explore' : '/(tabs)/create')}
+            >
+              <Text style={styles.exploreEmptyBtnText}>
+                {activeTab === 'following' ? 'Find Creators' : 'Create a Thought'}
+              </Text>
+            </Pressable>
+          </View>
+        }
+        contentContainerStyle={styles.listContent}
+      />
     </SafeAreaView>
   );
 }
@@ -146,7 +216,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 4,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
     backgroundColor: '#FFFFFF',
@@ -156,28 +226,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs + 2,
   },
-  logoBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 16,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '900',
-    color: COLORS.textPrimary,
-    letterSpacing: -0.5,
-  },
   pkBadge: {
     backgroundColor: COLORS.primarySurface,
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
@@ -188,8 +239,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
   iconButton: {
-    padding: SPACING.xs,
+    padding: 2,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -217,36 +273,101 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontWeight: '800',
   },
-  listContent: {
-    paddingBottom: SPACING.xxxl,
+  creatorsSection: {
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
-  loadingContainer: {
-    flex: 1,
+  creatorsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  creatorsTitle: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  seeAllText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  creatorsScroll: {
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
+  },
+  creatorStoryItem: {
+    alignItems: 'center',
+    width: 64,
+  },
+  myAvatarWrap: {
+    position: 'relative',
+  },
+  addBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    backgroundColor: COLORS.primary,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xxxl,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  loadingText: {
-    marginTop: SPACING.md,
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZE.sm,
+  creatorAvatarRing: {
+    padding: 2,
+    borderRadius: RADIUS.full,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  creatorStoryName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  listContent: {
+    paddingBottom: SPACING.xxxl,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.xxxl,
-    marginTop: SPACING.xxxl,
+    marginTop: SPACING.xxl,
   },
   emptyTitle: {
     fontSize: FONT_SIZE.lg,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.textPrimary,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.xs,
-    maxWidth: 240,
+    marginBottom: SPACING.lg,
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  exploreEmptyBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm + 4,
+    borderRadius: RADIUS.full,
+  },
+  exploreEmptyBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: FONT_SIZE.sm,
   },
 });

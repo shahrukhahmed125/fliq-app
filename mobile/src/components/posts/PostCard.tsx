@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, Share } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   Heart,
   MessageCircle,
@@ -7,54 +8,36 @@ import {
   Bookmark,
   Share2,
   MapPin,
+  MoreHorizontal,
 } from 'lucide-react-native';
 import { Post } from '../../types';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../constants/theme';
 import { Avatar } from '../ui/Avatar';
 import { MediaCollage } from './MediaCollage';
-import { postService } from '../../services/api/postService';
+import { useApp } from '../../context/AppContext';
 
 interface PostCardProps {
   post: Post;
   onPressPost?: (post: Post) => void;
   onPressComment?: (post: Post) => void;
+  showBorder?: boolean;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onPressPost, onPressComment }) => {
-  const [isLiked, setIsLiked] = useState(post.is_liked);
-  const [likesCount, setLikesCount] = useState(post.likes_count);
-  const [isReposted, setIsReposted] = useState(post.is_reposted);
-  const [repostsCount, setRepostsCount] = useState(post.reposts_count);
-  const [isBookmarked, setIsBookmarked] = useState(post.is_bookmarked || false);
+export const PostCard: React.FC<PostCardProps> = ({
+  post,
+  onPressPost,
+  onPressComment,
+  showBorder = true,
+}) => {
+  const router = useRouter();
+  const { toggleLike, toggleRepost, toggleBookmark, currentUser } = useApp();
 
-  const handleLike = async () => {
-    // Optimistic UI update
-    const nextLiked = !isLiked;
-    const nextCount = nextLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
-    setIsLiked(nextLiked);
-    setLikesCount(nextCount);
-
-    try {
-      await postService.toggleLike(post.id);
-    } catch {
-      // Revert if failed
-      setIsLiked(!nextLiked);
-      setLikesCount(likesCount);
+  const handlePressAuthor = () => {
+    if (post.user.id === currentUser.id || post.user.username === currentUser.username) {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push(`/users/${post.user.username.replace('@', '')}`);
     }
-  };
-
-  const handleRepost = async () => {
-    const nextReposted = !isReposted;
-    const nextCount = nextReposted ? repostsCount + 1 : Math.max(0, repostsCount - 1);
-    setIsReposted(nextReposted);
-    setRepostsCount(nextCount);
-
-    await postService.toggleRepost(post.id);
-  };
-
-  const handleBookmark = async () => {
-    setIsBookmarked(!isBookmarked);
-    await postService.toggleBookmark(post.id);
   };
 
   const handleShare = async () => {
@@ -77,35 +60,51 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onPressPost, onPressCo
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.card,
+        showBorder && styles.bordered,
+        pressed && styles.cardPressed,
+      ]}
       onPress={() => onPressPost?.(post)}
     >
+      {/* Header */}
       <View style={styles.header}>
-        <Avatar
-          uri={post.user.profile_photo}
-          name={post.user.name}
-          size={42}
-          isVerified={post.user.is_verified}
-        />
+        <Pressable onPress={handlePressAuthor}>
+          <Avatar
+            uri={post.user.profile_photo}
+            name={post.user.name}
+            size={42}
+            isVerified={post.user.is_verified}
+          />
+        </Pressable>
+
         <View style={styles.headerMeta}>
           <View style={styles.authorRow}>
-            <Text style={styles.authorName} numberOfLines={1}>
-              {post.user.name}
-            </Text>
-            <Text style={styles.authorUsername} numberOfLines={1}>
-              {post.user.username}
-            </Text>
+            <Pressable onPress={handlePressAuthor}>
+              <Text style={styles.authorName} numberOfLines={1}>
+                {post.user.name}
+              </Text>
+            </Pressable>
+            <Pressable onPress={handlePressAuthor}>
+              <Text style={styles.authorUsername} numberOfLines={1}>
+                {post.user.username}
+              </Text>
+            </Pressable>
             <Text style={styles.dotSeparator}>·</Text>
             <Text style={styles.timestamp}>{formatTimestamp(post.created_at)}</Text>
           </View>
 
           {post.city && (
             <View style={styles.cityPill}>
-              <MapPin size={10} color={COLORS.primaryDark} />
+              <MapPin size={9} color={COLORS.primaryDark} />
               <Text style={styles.cityText}>{post.city}</Text>
             </View>
           )}
         </View>
+
+        <Pressable style={styles.moreBtn} hitSlop={8} onPress={handleShare}>
+          <MoreHorizontal size={18} color={COLORS.textMuted} />
+        </Pressable>
       </View>
 
       {/* Content Text */}
@@ -115,61 +114,80 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onPressPost, onPressCo
       {post.topics && post.topics.length > 0 && (
         <View style={styles.topicsRow}>
           {post.topics.map((topic) => (
-            <Text key={topic} style={styles.topicTag}>
-              #{topic}
-            </Text>
+            <Pressable
+              key={topic}
+              onPress={() => router.push('/(tabs)/explore')}
+              hitSlop={4}
+            >
+              <Text style={styles.topicTag}>#{topic}</Text>
+            </Pressable>
           ))}
         </View>
       )}
 
       {/* Media Collage */}
-      <MediaCollage media={post.media} />
+      <MediaCollage media={post.media} onPressMedia={() => onPressPost?.(post)} />
 
       {/* Action Toolbar */}
       <View style={styles.toolbar}>
         {/* Comment */}
         <Pressable
           style={styles.actionBtn}
-          onPress={() => onPressComment ? onPressComment(post) : onPressPost?.(post)}
+          onPress={() =>
+            onPressComment ? onPressComment(post) : onPressPost ? onPressPost(post) : null
+          }
+          hitSlop={6}
         >
           <MessageCircle size={18} color={COLORS.textSecondary} />
           <Text style={styles.actionCount}>{post.comments_count}</Text>
         </Pressable>
 
         {/* Repost */}
-        <Pressable style={styles.actionBtn} onPress={handleRepost}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={() => toggleRepost(post.id)}
+          hitSlop={6}
+        >
           <Repeat2
             size={18}
-            color={isReposted ? COLORS.primary : COLORS.textSecondary}
+            color={post.is_reposted ? COLORS.primary : COLORS.textSecondary}
           />
-          <Text style={[styles.actionCount, isReposted && styles.activePrimaryCount]}>
-            {repostsCount}
+          <Text style={[styles.actionCount, post.is_reposted && styles.activePrimaryCount]}>
+            {post.reposts_count}
           </Text>
         </Pressable>
 
         {/* Like */}
-        <Pressable style={styles.actionBtn} onPress={handleLike}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={() => toggleLike(post.id)}
+          hitSlop={6}
+        >
           <Heart
             size={18}
-            color={isLiked ? COLORS.like : COLORS.textSecondary}
-            fill={isLiked ? COLORS.like : 'transparent'}
+            color={post.is_liked ? COLORS.like : COLORS.textSecondary}
+            fill={post.is_liked ? COLORS.like : 'transparent'}
           />
-          <Text style={[styles.actionCount, isLiked && styles.activeLikeCount]}>
-            {likesCount}
+          <Text style={[styles.actionCount, post.is_liked && styles.activeLikeCount]}>
+            {post.likes_count}
           </Text>
         </Pressable>
 
         {/* Bookmark */}
-        <Pressable style={styles.actionBtn} onPress={handleBookmark}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={() => toggleBookmark(post.id)}
+          hitSlop={6}
+        >
           <Bookmark
             size={18}
-            color={isBookmarked ? COLORS.primary : COLORS.textSecondary}
-            fill={isBookmarked ? COLORS.primary : 'transparent'}
+            color={post.is_bookmarked ? COLORS.primary : COLORS.textSecondary}
+            fill={post.is_bookmarked ? COLORS.primary : 'transparent'}
           />
         </Pressable>
 
         {/* Share */}
-        <Pressable style={styles.actionBtn} onPress={handleShare}>
+        <Pressable style={styles.actionBtn} onPress={handleShare} hitSlop={6}>
           <Share2 size={18} color={COLORS.textSecondary} />
         </Pressable>
       </View>
@@ -182,6 +200,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+  },
+  bordered: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
   },
@@ -229,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.primarySurface,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1,
     borderRadius: RADIUS.sm,
     alignSelf: 'flex-start',
     marginTop: 2,
@@ -237,12 +257,15 @@ const styles = StyleSheet.create({
   },
   cityText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.primaryDark,
+  },
+  moreBtn: {
+    padding: 4,
   },
   content: {
     fontSize: FONT_SIZE.md,
-    lineHeight: 21,
+    lineHeight: 22,
     color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },

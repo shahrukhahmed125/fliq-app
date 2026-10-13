@@ -8,10 +8,11 @@ export interface User {
   website?: string;
   profile_photo?: string | null;
   profile_cover?: string | null;
-  followers_count?: number;
-  following_count?: number;
-  posts_count?: number;
+  followers_count: number;
+  following_count: number;
+  posts_count: number;
   is_verified?: boolean;
+  is_following?: boolean;
   created_at?: string;
 }
 
@@ -34,10 +35,10 @@ export interface Post {
   likes_count: number;
   comments_count: number;
   reposts_count: number;
-  bookmarks_count?: number;
+  bookmarks_count: number;
   is_liked: boolean;
   is_reposted: boolean;
-  is_bookmarked?: boolean;
+  is_bookmarked: boolean;
   media: PostMedia[];
   user: User;
   created_at: string;
@@ -45,12 +46,14 @@ export interface Post {
 
 export interface Comment {
   id: string;
-  post_id?: string;
+  post_id: string;
   parent_id?: string | null;
   content: string;
   user: User;
   created_at: string;
-  replies_count?: number;
+  likes_count?: number;
+  is_liked?: boolean;
+  replies?: Comment[];
 }
 
 export interface NotificationItem {
@@ -68,6 +71,7 @@ export interface TrendTopic {
   topic: string;
   postsCount: string;
   category: string;
+  description?: string;
 }
 
 export interface CreatorProfile {
@@ -77,4 +81,5 @@ export interface CreatorProfile {
   category: string;
   bio: string;
   followersCount: string;
+  is_following?: boolean;
 }

@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Eye, EyeOff, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '../../src/context/AuthContext';
+import { FliqMark } from '../../src/components/ui/FliqMark';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../src/constants/theme';
 
 export default function SignInScreen() {
@@ -20,21 +22,34 @@ export default function SignInScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('shahrukh@fliq.pk');
   const [password, setPassword] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in both email and password.');
       return;
     }
     try {
       setLoading(true);
       setError('');
-      await login({ email, password });
+      await login({ email: email.trim(), password: password.trim() });
       router.replace('/(tabs)');
     } catch {
       setError('Unable to sign in. Please verify your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoSignIn = async () => {
+    setEmail('shahrukh@fliq.pk');
+    setPassword('password123');
+    try {
+      setLoading(true);
+      await login({ email: 'shahrukh@fliq.pk', password: 'password123' });
+      router.replace('/(tabs)');
     } finally {
       setLoading(false);
     }
@@ -46,17 +61,19 @@ export default function SignInScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* Back to Welcome */}
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={22} color={COLORS.textPrimary} />
+          </Pressable>
+
           {/* Brand Header */}
           <View style={styles.brandContainer}>
             <View style={styles.logoBadge}>
-              <Text style={styles.logoBadgeText}>F</Text>
+              <FliqMark size={34} color="#FFFFFF" />
             </View>
-            <Text style={styles.brandTitle}>Fliq</Text>
-            <Text style={styles.brandSubtitle}>See what's happening</Text>
-            <Text style={styles.brandDescription}>
-              Join Fliq today for a calmer public square across Pakistan.
-            </Text>
+            <Text style={styles.brandTitle}>Welcome back</Text>
+            <Text style={styles.brandSubtitle}>Sign in to your Fliq account</Text>
           </View>
 
           {/* Form */}
@@ -83,14 +100,27 @@ export default function SignInScreen() {
                   <Text style={styles.forgotLink}>Forgot?</Text>
                 </Pressable>
               </View>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={COLORS.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="••••••••"
+                  placeholderTextColor={COLORS.textMuted}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                  hitSlop={8}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={COLORS.textMuted} />
+                  ) : (
+                    <Eye size={18} color={COLORS.textMuted} />
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -103,6 +133,12 @@ export default function SignInScreen() {
               ) : (
                 <Text style={styles.submitButtonText}>Sign In</Text>
               )}
+            </Pressable>
+
+            {/* Quick Demo Fill Button */}
+            <Pressable style={styles.demoFillBtn} onPress={handleDemoSignIn}>
+              <Sparkles size={14} color={COLORS.primaryDark} />
+              <Text style={styles.demoFillText}>Quick Demo Sign In (1-Tap)</Text>
             </Pressable>
 
             <View style={styles.footerRow}>
@@ -128,17 +164,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: SPACING.xxl,
-    paddingVertical: SPACING.xl,
+    paddingBottom: SPACING.xxl,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xxxl,
+    marginBottom: SPACING.xxl,
   },
   logoBadge: {
-    width: 52,
-    height: 52,
+    width: 58,
+    height: 58,
     borderRadius: RADIUS.lg,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
@@ -150,29 +195,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  logoBadgeText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: COLORS.textPrimary,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginTop: 2,
-  },
-  brandDescription: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-    maxWidth: 280,
+    marginTop: 4,
   },
   formContainer: {
     width: '100%',
@@ -219,13 +251,31 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     color: COLORS.textPrimary,
   },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textPrimary,
+  },
+  eyeBtn: {
+    paddingHorizontal: SPACING.md,
+  },
   submitButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md + 2,
     borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -238,6 +288,23 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+  },
+  demoFillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primarySurface,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADIUS.full,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+  },
+  demoFillText: {
+    color: COLORS.primaryDark,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
   },
   footerRow: {
