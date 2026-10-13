@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, TrendingUp, Users, X } from 'lucide-react-native';
-import { SEED_TRENDS, SEED_CREATORS } from '../../src/data/fliqData';
+import { INITIAL_TRENDS, MOCK_USERS } from '../../src/data/fliqData';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { COLORS, SPACING, RADIUS, FONT_SIZE } from '../../src/constants/theme';
 
@@ -24,9 +24,10 @@ export default function ExploreScreen() {
   const categories = ['All', 'Cricket', 'Tech', 'Culture', 'Lahore', 'Karachi'];
   const [selectedCat, setSelectedCat] = useState('All');
 
-  const filteredTrends = SEED_TRENDS.filter((t) =>
+  const filteredTrends = INITIAL_TRENDS.filter((t) =>
     t.topic.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const featuredCreators = Object.values(MOCK_USERS);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -98,7 +99,7 @@ export default function ExploreScreen() {
           </View>
 
           <View style={styles.cardGroup}>
-            {SEED_CREATORS.map((creator) => {
+            {featuredCreators.map((creator) => {
               const isFollowing = !!followedState[creator.id];
               return (
                 <View key={creator.id} style={styles.creatorRow}>
@@ -112,7 +113,7 @@ export default function ExploreScreen() {
                   </View>
                   <Pressable
                     style={[styles.followBtn, isFollowing && styles.followBtnActive]}
-                    onPress={() => toggleFollow(creator.id)}
+                    onPress={() => toggleFollow(String(creator.id))}
                   >
                     <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
                       {isFollowing ? 'Following' : 'Follow'}
