@@ -1,5 +1,0 @@
-{
-  "name": "Fliq",
-  "description": "A calmer public square for Pakistan: fast enough for live trends, thoughtful enough for creators, and simple enough to use every day.",
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
